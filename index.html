@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anatomía 2D Interactiva</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { margin: 0; background: #f8fafc; color: #0f172a; display: flex; flex-direction: column; min-height: 100vh; }
+        header { background: #0f172a; color: white; padding: 18px; text-align: center; }
+        .controles { display: flex; justify-content: center; gap: 12px; padding: 16px; background: #e2e8f0; flex-wrap: wrap; }
+        
+        /* Botones grandes y minimalistas según UX */
+        button { padding: 14px 22px; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; background: #ffffff; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.08); transition: transform 0.1s, background 0.2s; }
+        button:active { transform: scale(0.97); }
+        button.activo { background: #2563eb; color: white; }
+        button.btn-ayuda { background: #0d9488; color: white; }
+        button.btn-encuesta { background: #7c3aed; color: white; }
+
+        main { display: flex; flex: 1; flex-wrap: wrap; max-width: 1000px; margin: 0 auto; width: 100%; padding: 16px; gap: 20px; }
+        .lienzo { flex: 1; min-width: 280px; background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; }
+        svg { width: 100%; max-width: 280px; height: auto; }
+        .parte-cuerpo { cursor: pointer; stroke: #334155; stroke-width: 2.5; transition: fill 0.2s; }
+        .parte-cuerpo:hover { fill: #fbbf24 !important; }
+        
+        .panel-info { flex: 1; min-width: 280px; background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 0.85rem; font-weight: bold; background: #dbeafe; color: #1e40af; margin-bottom: 10px; }
+        .reto-box { background: #eff6ff; border: 2px solid #3b82f6; padding: 18px; border-radius: 12px; margin-top: 16px; }
+        .stats { display: flex; justify-content: space-between; font-size: 0.9rem; color: #475569; margin-bottom: 8px; font-weight: bold; }
+
+        /* Ventanas modales (Tutorial y Evaluación Piloto) */
+        .modal-fondo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.75); display: flex; justify-content: center; align-items: center; padding: 16px; z-index: 100; }
+        .modal-caja { background: white; max-width: 450px; width: 100%; border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .paso-tutorial { background: #f1f5f9; padding: 12px; border-radius: 10px; margin-bottom: 10px; font-size: 0.95rem; }
+        select, textarea { width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+<!-- Modal de Tutorial Breve (Requisito UX del docente) -->
+<div id="modal-tutorial" class="modal-fondo">
+    <div class="modal-caja">
+        <h2 style="margin-top:0; color:#0f172a;">👋 ¡Bienvenido al Atlas 2D!</h2>
+        <p style="color:#475569;">Sigue estos 3 pasos rápidos para usar la aplicación:</p>
+        <div class="paso-tutorial"><b>1. Consulta rápida:</b> Elige entre <b>Sistema Óseo</b> o <b>Muscular</b> y toca cualquier parte del cuerpo para ver su nombre y función.</div>
+        <div class="paso-tutorial"><b>2. Modo Juego:</b> Pulsa <b>🎯 Jugar</b> para iniciar el reto y encontrar las estructuras en el menor tiempo posible.</div>
+        <div class="paso-tutorial"><b>3. Prueba Piloto:</b> Al finalizar, pulsa <b>📋 Evaluar App</b> para registrar tu tiempo y opinión.</div>
+        <button class="activo" style="width:100%; margin-top:8px;" onclick="cerrarModal('modal-tutorial')">¡Entendido, empezar!</button>
+    </div>
+</div>
+
+<!-- Modal de Prueba Piloto (Requisito Evaluación del docente) -->
+<div id="modal-piloto" class="modal-fondo" style="display:none;">
+    <div class="modal-caja">
+        <h2 style="margin-top:0; color:#0f172a;">📋 Evaluación Piloto</h2>
+        <p style="font-size:0.9rem; color:#475569;">Ayúdanos a mejorar esta app educativa con tus datos de prueba:</p>
+        
+        <label><b>⏱️ Tiempo de ejecución registrado:</b></label>
+        <input type="text" id="campo-tiempo" readonly style="width:100%; padding:10px; margin:6px 0 14px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; font-weight:bold;">
+
+        <label><b>1. Facilidad de uso:</b></label>
+        <select id="eval-facilidad">
+            <option value="Muy fácil">⭐⭐⭐⭐⭐ Muy fácil e intuitiva</option>
+            <option value="Fácil">⭐⭐⭐⭐ Fácil de usar</option>
+            <option value="Regular">⭐⭐⭐ Algo confusa</option>
+        </select>
+
+        <label><b>2. Percepción de utilidad para aprender:</b></label>
+        <select id="eval-utilidad">
+            <option value="Muy útil">Muy útil para estudiar</option>
+            <option value="Útil">Útil como repaso rápido</option>
+            <option value="Poco útil">Necesita más contenido</option>
+        </select>
+
+        <label><b>3. Comentarios o sugerencias:</b></label>
+        <textarea id="eval-comentario" rows="2" placeholder="¿Qué mejorarías de la app?"></textarea>
+
+        <div style="display:flex; gap:10px;">
+            <button onclick="cerrarModal('modal-piloto')" style="flex:1; background:#e2e8f0;">Cancelar</button>
+            <button class="activo" onclick="guardarEvaluacion()" style="flex:1;">Guardar Datos</button>
+        </div>
+        <p id="msg-piloto" style="color:#16a34a; font-weight:bold; text-align:center; margin-bottom:0;"></p>
+    </div>
+</div>
+
+<header>
+    <h1 style="margin:0; font-size: 1.5rem;">🧬 Atlas Anatómico 2D</h1>
+    <p style="margin:4px 0 0; font-size: 0.95rem; color: #94a3b8;">Consulta rápida y aprendizaje gamificado</p>
+</header>
+
+<div class="controles">
+    <button id="btn-oseo" class="activo" onclick="cambiarSistema('oseo')">🦴 Huesos</button>
+    <button id="btn-muscular" onclick="cambiarSistema('muscular')">💪 Músculos</button>
+    <button id="btn-quiz" onclick="iniciarQuiz()">🎯 Jugar</button>
+    <button class="btn-ayuda" onclick="abrirModal('modal-tutorial')">❓ Tutorial</button>
+    <button class="btn-encuesta" onclick="abrirPiloto()">📋 Evaluar App</button>
+</div>
+
+<main>
+    <div class="lienzo">
+        <!-- SVG Sistema Óseo -->
+        <svg id="svg-oseo" viewBox="0 0 200 420">
+            <circle class="parte-cuerpo" fill="#f8fafc" cx="100" cy="40" r="26" onclick="seleccionar('Cráneo', 'Sistema Óseo', 'Protege el cerebro y da estructura a la cabeza.')"/>
+            <rect class="parte-cuerpo" fill="#f8fafc" x="72" y="80" width="56" height="75" rx="12" onclick="seleccionar('Caja Torácica', 'Sistema Óseo', 'Costillas y esternón que protegen el corazón y pulmones.')"/>
+            <rect class="parte-cuerpo" fill="#f8fafc" x="42" y="85" width="18" height="70" rx="8" onclick="seleccionar('Húmero', 'Sistema Óseo', 'Hueso largo del brazo que une el hombro con el codo.')"/>
+            <rect class="parte-cuerpo" fill="#f8fafc" x="140" y="85" width="18" height="70" rx="8" onclick="seleccionar('Húmero', 'Sistema Óseo', 'Hueso largo del brazo que une el hombro con el codo.')"/>
+            <path class="parte-cuerpo" fill="#f8fafc" d="M68 165 L132 165 L125 200 L75 200 Z" onclick="seleccionar('Pelvis', 'Sistema Óseo', 'Conecta la columna vertebral con las piernas.')"/>
+            <rect class="parte-cuerpo" fill="#f8fafc" x="72" y="208" width="20" height="90" rx="8" onclick="seleccionar('Fémur', 'Sistema Óseo', 'El hueso más largo y fuerte del cuerpo, ubicado en el muslo.')"/>
+            <rect class="parte-cuerpo" fill="#f8fafc" x="108" y="208" width="20" height="90" rx="8" onclick="seleccionar('Fémur', 'Sistema Óseo', 'El hueso más largo y fuerte del cuerpo, ubicado en el muslo.')"/>
+            <rect class="parte-cuerpo" fill="#f8fafc" x="74" y="306" width="16" height="85" rx="6" onclick="seleccionar('Tibia', 'Sistema Óseo', 'Hueso principal de la espinilla que soporta el peso al caminar.')"/>
+            <rect class="parte-cuerpo" fill="#f8fafc" x="110" y="306" width="16" height="85" rx="6" onclick="seleccionar('Tibia', 'Sistema Óseo', 'Hueso principal de la espinilla que soporta el peso al caminar.')"/>
+        </svg>
+
+        <!-- SVG Sistema Muscular -->
+        <svg id="svg-muscular" viewBox="0 0 200 420" style="display:none;">
+            <rect class="parte-cuerpo" fill="#fca5a5" x="68" y="80" width="64" height="45" rx="10" onclick="seleccionar('Pectoral Mayor', 'Sistema Muscular', 'Músculo del pecho que permite mover y acercar el brazo.')"/>
+            <rect class="parte-cuerpo" fill="#fca5a5" x="75" y="130" width="50" height="65" rx="8" onclick="seleccionar('Recto Abdominal', 'Sistema Muscular', 'Músculo del abdomen que flexiona el tronco y mantiene la postura.')"/>
+            <ellipse class="parte-cuerpo" fill="#fca5a5" cx="50" cy="118" rx="13" ry="32" onclick="seleccionar('Bíceps Braquial', 'Sistema Muscular', 'Músculo frontal del brazo que flexiona el codo.')"/>
+            <ellipse class="parte-cuerpo" fill="#fca5a5" cx="150" cy="118" rx="13" ry="32" onclick="seleccionar('Bíceps Braquial', 'Sistema Muscular', 'Músculo frontal del brazo que flexiona el codo.')"/>
+            <rect class="parte-cuerpo" fill="#fca5a5" x="68" y="205" width="26" height="92" rx="12" onclick="seleccionar('Cuádriceps Femoral', 'Sistema Muscular', 'Músculo potente del muslo que extiende la rodilla.')"/>
